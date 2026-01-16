@@ -122,7 +122,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
 
         let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
 
-
         let resp = self.ontology_provider.provide_ontology(
             ontology_id,
             &provider_file_name,
