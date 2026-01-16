@@ -1,38 +1,38 @@
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyProvider;
 
-pub struct ObolibraryProvider {
+pub struct OboLibraryProvider {
     base_url: String,
     client: reqwest::blocking::Client,
 }
-impl Default for ObolibraryProvider {
+impl Default for OboLibraryProvider {
     fn default() -> Self {
-        ObolibraryProvider {
+        OboLibraryProvider {
             base_url: "https://purl.obolibrary.org/obo".to_string(),
             client: reqwest::blocking::Client::new(),
         }
     }
 }
 
-impl ObolibraryProvider {
+impl OboLibraryProvider {
     pub fn new(base_url: String) -> Self {
-        ObolibraryProvider {
+        OboLibraryProvider {
             base_url,
             client: reqwest::blocking::Client::new(),
         }
     }
 }
 
-impl OntologyProvider for ObolibraryProvider {
+impl OntologyProvider for OboLibraryProvider {
     fn provide_ontology(
         &self,
-        ontology_ontology_id: &str,
+        ontology_id: &str,
         file_name: &str,
         version: &str,
     ) -> Result<String, OntologyRegistryError> {
         let url = format!(
             "{}/{}/releases/{}/{}",
-            self.base_url, ontology_ontology_id, version, file_name
+            self.base_url, ontology_id, version, file_name
         );
 
         let resp = self.client.get(url.clone()).send();
@@ -79,7 +79,7 @@ mod tests {
             .with_body(expected_body)
             .create();
 
-        let provider = ObolibraryProvider::new(server.url());
+        let provider = OboLibraryProvider::new(server.url());
 
         let result = provider.provide_ontology(ontology_ontology_id, file_name, "2023-01-01");
 
@@ -107,7 +107,7 @@ mod tests {
             .with_body(expected_body)
             .create();
 
-        let provider = ObolibraryProvider::new(server.url());
+        let provider = OboLibraryProvider::new(server.url());
 
         let result = provider.provide_ontology(ontology_ontology_id, file_name, "2023-01-01");
 
@@ -124,7 +124,7 @@ mod tests {
             .with_status(404)
             .create();
 
-        let provider = ObolibraryProvider::new(server.url());
+        let provider = OboLibraryProvider::new(server.url());
 
         let result = provider.provide_ontology("go", "go.owl", "2023-01-01");
 

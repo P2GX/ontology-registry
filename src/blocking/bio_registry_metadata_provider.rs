@@ -58,21 +58,21 @@ impl OntologyMetadataProvider for BioRegistryMetadataProvider {
                 reason: err.to_string(),
             })?;
 
-        let bio_bank_metadata: BioRegistryResource =
+        let bio_registry_metadata: BioRegistryResource =
             response
                 .json()
                 .map_err(|_| OntologyRegistryError::ProvidingMetadata {
                     reason: format!("Cant convert to json for {ontology_id}"),
                 })?;
 
-        if let Some(version) = bio_bank_metadata.version {
+        if let Some(version) = bio_registry_metadata.version {
             Ok(OntologyMetadata {
-                ontology_id: bio_bank_metadata.prefix,
+                ontology_id: bio_registry_metadata.prefix,
                 version,
-                json_file_location: bio_bank_metadata.download_json,
-                owl_file_location: bio_bank_metadata.download_owl,
-                obo_file_location: bio_bank_metadata.download_obo,
-                title: bio_bank_metadata.name,
+                json_file_location: bio_registry_metadata.download_json,
+                owl_file_location: bio_registry_metadata.download_owl,
+                obo_file_location: bio_registry_metadata.download_obo,
+                title: bio_registry_metadata.name,
             })
         } else {
             Err(OntologyRegistryError::ProvidingMetadata {

@@ -1,6 +1,6 @@
-use ontology_registry::blocking::bio_bank_metadata_provider::BioRegistryMetadataProvider;
+use ontology_registry::blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
 use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
-use ontology_registry::blocking::obolib_ontology_provider::ObolibraryProvider;
+use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
 use ontology_registry::enums::{FileType, Version};
 use ontology_registry::traits::OntologyRegistry;
 use std::fs;
@@ -13,7 +13,7 @@ fn test_integration_declared_version() {
     let registry = FileSystemOntologyRegistry::new(
         tmp_dir.keep(),
         BioRegistryMetadataProvider::default(),
-        ObolibraryProvider::default(),
+        OboLibraryProvider::default(),
     );
 
     registry.register("uo", &version, &FileType::Json).unwrap();
@@ -38,7 +38,7 @@ fn test_integration_declared_latest() {
     let registry = FileSystemOntologyRegistry::new(
         tmp_dir.keep(),
         BioRegistryMetadataProvider::default(),
-        ObolibraryProvider::default(),
+        OboLibraryProvider::default(),
     );
 
     registry

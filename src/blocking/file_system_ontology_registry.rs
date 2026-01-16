@@ -212,7 +212,10 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         let resolved_version = self.resolve_version(ontology_id, version);
 
         if resolved_version.is_err() {
-            warn!("Unable to get ontology for version {}", version);
+            warn!(
+                "Unable to get ontology '{}' for version '{}'",
+                ontology_id, version
+            );
             return None;
         }
 
