@@ -3,19 +3,47 @@ use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProvider, OntologyProvider, OntologyRegistry};
 use log::{debug, warn};
 use std::fs;
-
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+/// A registry implementation that manages ontologies as files on the local filesystem.
+///
+/// This registry acts as a local cache/storage layer. When an ontology is registered,
+/// it is fetched from the configured `OntologyProvider` and saved to the `registry_path`.
+///
+/// # Features
+///
+/// * **Thread Safety:** Registration is guarded by a mutex to prevent race conditions when
+///   multiple threads attempt to download/write the same ontology simultaneously.
+/// * **Atomic Writes:** Files are written to a temporary location first and then renamed.
+///   This ensures that the registry never contains partially written or corrupted ontology files.
+/// * **Version Resolution:** Supports resolving `Version::Latest` dynamically via the
+///   `OntologyMetadataProvider`.
+///
+/// # Type Parameters
+///
+/// * `MDP`: **OntologyMetadataProvider** - Used to resolve version information (e.g., determining what "Latest" maps to).
+/// * `OP`: **OntologyProvider** - Used to fetch the actual ontology content (bytes) from a remote or external source.
 pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProvider, OP: OntologyProvider> {
+    /// The root directory where ontology files will be stored.
     registry_path: PathBuf,
+    /// The provider used to fetch ontology data during registration.
     ontology_provider: OP,
+    /// The provider used to resolve ontology metadata (versions).
     metadata_provider: MDP,
+    /// A lock used to ensure thread-safe file writing operations.
     write_lock: Mutex<()>,
 }
 
 impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegistry<MDP, OP> {
+    /// Creates a new `FileSystemOntologyRegistry`.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry_path` - The directory path where ontologies will be saved.
+    /// * `metadata_provider` - The service to query for ontology version metadata.
+    /// * `ontology_provider` - The service to download ontology content from.
     pub fn new(registry_path: PathBuf, metadata_provider: MDP, ontology_provider: OP) -> Self {
         FileSystemOntologyRegistry {
             registry_path,
@@ -38,6 +66,7 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegi
             Version::Declared(v) => Ok(v.to_string()),
         }
     }
+
     fn construct_registry_file_name(
         &self,
         ontology_id: &str,
@@ -51,6 +80,23 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegi
 impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathBuf>
     for FileSystemOntologyRegistry<MDP, OP>
 {
+    /// Registers an ontology by downloading it and saving it to the local filesystem.
+    ///
+    /// # Behavior
+    ///
+    /// 1.  Resolves the version (fetching metadata if `Latest` is requested).
+    /// 2.  Checks if the file already exists locally. If so, returns the path immediately.
+    /// 3.  Fetches the content from the `OntologyProvider`.
+    /// 4.  **Atomic Write:** Writes content to a `.tmp` file, then renames it to the final destination.
+    ///     This prevents other threads/processes from reading incomplete files.
+    ///
+    /// # Errors
+    ///
+    /// Returns `OntologyRegistryError` if:
+    /// * The metadata cannot be resolved.
+    /// * The registry directory cannot be created.
+    /// * The ontology provider fails to return data.
+    /// * File I/O operations (creation, writing, renaming) fail.
     fn register(
         &self,
         ontology_id: &str,
@@ -58,7 +104,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         file_type: &FileType,
     ) -> Result<PathBuf, OntologyRegistryError> {
         let mut out_path = self.registry_path.clone();
-
         let resolved_version = self.resolve_version(ontology_id, version)?;
 
         let registry_file_name =
@@ -76,6 +121,7 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         }
 
         let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
+
 
         let resp = self.ontology_provider.provide_ontology(
             ontology_id,
@@ -128,6 +174,10 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         Ok(out_path)
     }
 
+    /// Removes an ontology from the local filesystem registry.
+    ///
+    /// Logs a warning if the version cannot be resolved or if deletion fails.
+    /// This operation is thread-safe regarding the `write_lock`.
     fn unregister(&self, ontology_id: &str, version: &Version, file_type: &FileType) {
         let resolved_version = self.resolve_version(ontology_id, version);
 
@@ -155,6 +205,10 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         }
     }
 
+    /// Retrieves the local filesystem path for a specific ontology.
+    ///
+    /// Returns `None` if the ontology is not currently found in the local registry
+    /// or if the version could not be resolved.
     fn get(&self, ontology_id: &str, version: &Version, file_type: &FileType) -> Option<PathBuf> {
         let resolved_version = self.resolve_version(ontology_id, version);
 
@@ -181,6 +235,9 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         Some(file_path)
     }
 
+    /// Lists all files currently stored in the registry directory.
+    ///
+    /// Returns a vector of strings representing the absolute paths of the files.
     fn list(&self) -> Vec<String> {
         let mut files = Vec::new();
 
