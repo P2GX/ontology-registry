@@ -1,6 +1,7 @@
 use crate::dataclasses::OntologyMetadata;
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyMetadataProvider;
+use log::debug;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
@@ -52,11 +53,13 @@ impl OntologyMetadataProvider for BioRegistryMetadataProvider {
         let response = self
             .client
             .get(url.clone())
-            .header("User-Agent", "phenoxtractor")
+            .header("User-Agent", "ontology-registry")
             .send()
             .map_err(|err| OntologyRegistryError::ProvidingMetadata {
                 reason: err.to_string(),
             })?;
+
+        debug!("Got registry metadata response for: '{}'", ontology_id);
 
         let bio_registry_metadata: BioRegistryResource =
             response
