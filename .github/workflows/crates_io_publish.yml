@@ -34,6 +34,38 @@ jobs:
           # Update Cargo.toml and Cargo.lock
           cargo set-version $VERSION
 
-      - name: Release
+      - name: Publish
         run: |
-          cargo publish --token CARGO_REGISTRY_TOKEN --allow-dirty --dry-run --color always
+          cargo publish --token ${{CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
+
+      #- name: Get package name
+      #  id: package_name
+      #  run: |
+      #    PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')
+      #    echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+      #    echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/release/${{steps.package_name.outputs.name}}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN}}
+          commit-message: "chore: automated updates"
+          committer: GitHub <noreply@github.com>
+          author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+          signoff: false
+          branch: version-bump-${{steps.package_name.outputs.name}}
+          base: master
+          delete-branch: true
+          title: '[Automated] Update Version Update'
+          body: |
+            This PR was automatically created by GitHub Actions.
+            It should only contain a version bump in the cargo.toml. Its necessary to merge, as a new version of this repo has just been released.
+          labels: |
+            automated
+            publish
+            documentation
