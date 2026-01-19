@@ -38,12 +38,12 @@ jobs:
         run: |
           cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
 
-      #- name: Get package name
-      #  id: package_name
-      #  run: |
-      #    PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')
-      #    echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-      #    echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
+      - name: Get package name
+        id: package_name
+        run: |
+          PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')
+          echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
@@ -59,9 +59,9 @@ jobs:
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           signoff: false
           branch: version-bump-${{steps.package_name.outputs.name}}
-          base: master
+          base: main
           delete-branch: true
-          title: '[Automated] Update Version Update'
+          title: '[Automated] Update Version'
           body: |
             This PR was automatically created by GitHub Actions.
             It should only contain a version bump in the cargo.toml. Its necessary to merge, as a new version of this repo has just been released.
