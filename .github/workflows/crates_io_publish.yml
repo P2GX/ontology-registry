@@ -1,12 +1,7 @@
 name: Crates.io publish
-#on:
-#  release:
-#    types: [ published ]
-#on:
-#  pull_request:
 on:
-  push:
-    tags: [ 'v*' ]
+  release:
+    types: [ published ]
 
 jobs:
 
@@ -26,17 +21,15 @@ jobs:
         run: |
           cargo install cargo-edit
 
-      - name: Set Cargo version from tag
+      - name: Set Version in env from Tag
+        id: set_version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "Setting version to: $VERSION"
           
           # Update Cargo.toml and Cargo.lock
-          cargo set-version $VERSION
-
-      - name: Publish
-        run: |
-          cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
+          echo "version=VERSION" >> "$GITHUB_OUTPUT"
+          echo "VERSION=VERSION" >> "$GITHUB_ENV"
 
       - name: Get package name
         id: package_name
@@ -44,6 +37,15 @@ jobs:
           PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')
           echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
+
+      - name: Set version in cargo.toml
+        run: cargo set-version $VERSION
+
+      - name: Publish
+        run: |
+          cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
+
+
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
@@ -54,11 +56,11 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.PERSONAL_TOKEN}}
-          commit-message: "chore: automated updates"
+          commit-message: "chore: automated version bump"
           committer: GitHub <noreply@github.com>
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           signoff: false
-          branch: version-bump-${{steps.package_name.outputs.name}}
+          branch: version-bump-${{steps.set_version.outputs.version}}
           base: main
           delete-branch: true
           title: '[Automated] Update Version'
