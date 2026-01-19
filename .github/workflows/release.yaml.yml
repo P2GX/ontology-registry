@@ -1,0 +1,34 @@
+name: release.yaml
+#on:
+#  release:
+#    types: [ published ]
+on:
+  pull_request:
+jobs:
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-edit
+        uses: taiki-e/install-action@cargo-edit
+
+      - name: Set Cargo version from tag
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Setting version to: $VERSION"
+          
+          # Update Cargo.toml and Cargo.lock
+          cargo set-version $VERSION
+
+      - name: Release
+      - run: |
+          cargo publish --token CARGO_REGISTRY_TOKEN --allow-dirty --dry-run --color always
