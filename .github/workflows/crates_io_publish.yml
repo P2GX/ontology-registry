@@ -47,11 +47,6 @@ jobs:
         run: |
           cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
 
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: target/release/${{steps.package_name.outputs.name}}
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
