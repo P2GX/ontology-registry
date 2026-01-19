@@ -1,6 +1,5 @@
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyProvider;
-use log::debug;
 
 pub struct OboLibraryProvider {
     base_url: String,
@@ -45,11 +44,6 @@ impl OntologyProvider for OboLibraryProvider {
                         reason: err.to_string(),
                     }
                 })?;
-
-                debug!(
-                    "Got file '{}' for ontology '{}' and version '{}'",
-                    file_name, ontology_id, version
-                );
 
                 Ok(response
                     .text()
