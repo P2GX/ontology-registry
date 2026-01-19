@@ -4,7 +4,7 @@ name: Crates.io publish
 #    types: [ published ]
 
 on:
-  tag:
+  tags:
     [ 'v*' ]
 
 jobs:
