@@ -3,7 +3,6 @@ on:
   release:
     types: [ published ]
 
-
 jobs:
 
   release:
@@ -40,10 +39,6 @@ jobs:
       - name: Set version in cargo.toml
         run: cargo set-version ${{steps.set_version.outputs.version}}
 
-      - name: Publish
-        run: |
-          cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
@@ -63,3 +58,8 @@ jobs:
             automated
             publish
             documentation
+
+      - name: Publish
+        run: |
+          cargo publish --token ${{secrets.CARGO_REGISTRY_TOKEN}} --allow-dirty --dry-run --color always
+
