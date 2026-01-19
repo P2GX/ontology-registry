@@ -8,10 +8,9 @@ name = "ontology-registry"
 version = "0.1.0"
 
 [dependencies]
-reqwest = { version = "0.13.1", features = ["blocking", "json"] }
-thiserror = "2.0.17"
-serde = { version = "1.0.228", features = ["derive"] }
-log = "0.4.29"
+reqwest = { version = "0.13", features = ["blocking", "json"] }
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
 
 
 [dev-dependencies]

@@ -25,7 +25,12 @@ pub trait OntologyRegistry<RegistryEntry> {
         version: &Version,
         file_type: &FileType,
     ) -> Result<RegistryEntry, OntologyRegistryError>;
-    fn unregister(&self, ontology_id: &str, version: &Version, file_type: &FileType);
+    fn unregister(
+        &self,
+        ontology_id: &str,
+        version: &Version,
+        file_type: &FileType,
+    ) -> Result<(), OntologyRegistryError>;
     fn get(
         &self,
         ontology_id: &str,

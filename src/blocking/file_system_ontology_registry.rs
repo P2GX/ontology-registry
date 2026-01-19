@@ -1,7 +1,6 @@
 use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProvider, OntologyProvider, OntologyRegistry};
-use log::{debug, warn};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -111,7 +110,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
-            debug!("Ontology '{}' already registered.", out_path.display());
             return Ok(out_path);
         }
 
@@ -136,10 +134,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
                 })?;
 
         if out_path.exists() {
-            debug!(
-                "Ontology '{}' was registered by another thread.",
-                out_path.display()
-            );
             return Ok(out_path);
         }
 
@@ -169,7 +163,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
             }
         })?;
 
-        debug!("Registered {}", out_path.display());
         Ok(out_path)
     }
 
@@ -177,31 +170,28 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
     ///
     /// Logs a warning if the version cannot be resolved or if deletion fails.
     /// This operation is thread-safe regarding the `write_lock`.
-    fn unregister(&self, ontology_id: &str, version: &Version, file_type: &FileType) {
-        let resolved_version = self.resolve_version(ontology_id, version);
-
-        if resolved_version.is_err() {
-            warn!("Failed to unregister cant resolve {}", version);
-            return;
-        }
+    fn unregister(
+        &self,
+        ontology_id: &str,
+        version: &Version,
+        file_type: &FileType,
+    ) -> Result<(), OntologyRegistryError> {
+        let resolved_version = self.resolve_version(ontology_id, version)?;
 
         let file_path = self
             .registry_path
             .clone()
-            .join(self.construct_registry_file_name(
-                ontology_id,
-                &resolved_version.unwrap(),
-                file_type,
-            ));
+            .join(self.construct_registry_file_name(ontology_id, &resolved_version, file_type));
 
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
 
         if file_path.exists() {
-            match fs::remove_file(&file_path) {
-                Ok(_) => debug!("Unregistered {}", file_path.display()),
-                Err(e) => warn!("Failed to unregister {}: {}", file_path.display(), e),
-            }
+            fs::remove_file(&file_path).map_err(|err| OntologyRegistryError::UnableToRegister {
+                reason: format!("Unable to rename temporary file '{}'", err),
+            })?;
         }
+
+        Ok(())
     }
 
     /// Retrieves the local filesystem path for a specific ontology.
@@ -212,10 +202,6 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
         let resolved_version = self.resolve_version(ontology_id, version);
 
         if resolved_version.is_err() {
-            warn!(
-                "Unable to get ontology '{}' for version '{}'",
-                ontology_id, version
-            );
             return None;
         }
 
@@ -229,11 +215,9 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry<PathB
             ));
 
         if !file_path.exists() {
-            debug!("Unable to get location: {}", file_path.display());
             return None;
         }
 
-        debug!("Returned register location {}", file_path.display());
         Some(file_path)
     }
 
@@ -479,11 +463,13 @@ mod tests {
 
         assert!(target_path.exists());
 
-        registry.unregister(
-            "todelete",
-            &Version::Declared("2024-05-05".to_string()),
-            &FileType::Json,
-        );
+        registry
+            .unregister(
+                "todelete",
+                &Version::Declared("2024-05-05".to_string()),
+                &FileType::Json,
+            )
+            .unwrap();
 
         assert!(!target_path.exists());
     }

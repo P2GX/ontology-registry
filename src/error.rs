@@ -10,4 +10,6 @@ pub enum OntologyRegistryError {
     NoRegistry,
     #[error("Unable to register ontology: {reason}")]
     UnableToRegister { reason: String },
+    #[error("Unable to unregister ontology: {reason}")]
+    UnableToUnregister { reason: String },
 }
