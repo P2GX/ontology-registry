@@ -1,6 +1,7 @@
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyProvider;
 
+#[derive(Debug)]
 pub struct OboLibraryProvider {
     base_url: String,
     client: reqwest::blocking::Client,

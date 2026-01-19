@@ -6,6 +6,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+#[derive(Debug)]
 /// A registry implementation that manages ontologies as files on the local filesystem.
 ///
 /// This registry acts as a local cache/storage layer. When an ontology is registered,
@@ -251,7 +252,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct MockMetadataProvider {
         data: HashMap<String, String>,
     }
@@ -289,6 +290,7 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Debug)]
     struct MockOntologyProvider {
         content: HashMap<String, String>,
     }

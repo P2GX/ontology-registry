@@ -2,14 +2,14 @@ use crate::dataclasses::OntologyMetadata;
 use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
 
-pub trait OntologyMetadataProvider {
+pub trait OntologyMetadataProvider: std::fmt::Debug {
     fn provide_metadata(
         &self,
         ontology_id: &str,
     ) -> Result<OntologyMetadata, OntologyRegistryError>;
 }
 
-pub trait OntologyProvider {
+pub trait OntologyProvider: std::fmt::Debug {
     fn provide_ontology(
         &self,
         ontology_id: &str,
@@ -18,7 +18,7 @@ pub trait OntologyProvider {
     ) -> Result<String, OntologyRegistryError>;
 }
 
-pub trait OntologyRegistry<RegistryEntry> {
+pub trait OntologyRegistry<RegistryEntry>: std::fmt::Debug {
     fn register(
         &self,
         ontology_id: &str,
