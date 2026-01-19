@@ -28,19 +28,17 @@ jobs:
       - name: Set Version in env from Tag
         id: set_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${GITHUB_REF#refs/tags/v}
           echo "Setting version to: $VERSION"
           
           # Update Cargo.toml and Cargo.lock
-          echo "version=VERSION" >> "$GITHUB_OUTPUT"
-          echo "VERSION=VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Get package name
         id: package_name
         run: |
           PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name')
           echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-          echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
 
       - name: Set version in cargo.toml
         run: cargo set-version ${{steps.set_version.outputs.version}}
