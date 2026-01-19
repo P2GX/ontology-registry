@@ -28,7 +28,7 @@ jobs:
       - name: Set Version in env from Tag
         id: set_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${GITHUB_REF#refs/tags/}
           echo "Setting version to: $VERSION"
           
           # Update Cargo.toml and Cargo.lock
