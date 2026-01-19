@@ -2,8 +2,12 @@ name: Crates.io publish
 #on:
 #  release:
 #    types: [ published ]
+#on:
+#  pull_request:
 on:
-  pull_request:
+  push:
+    tags: [ 'v*' ]
+
 jobs:
 
   release:
@@ -11,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
