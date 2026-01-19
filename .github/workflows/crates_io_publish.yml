@@ -43,7 +43,7 @@ jobs:
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> "$GITHUB_ENV"
 
       - name: Set version in cargo.toml
-        run: cargo set-version $VERSION
+        run: cargo set-version ${{steps.set_version.outputs.version}}
 
       - name: Publish
         run: |
