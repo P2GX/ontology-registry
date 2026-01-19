@@ -24,7 +24,9 @@ fn test_integration_declared_version() {
     let file = fs::read(path).unwrap();
     assert!(!file.is_empty());
 
-    registry.unregister("uo", &version, &FileType::Json);
+    registry
+        .unregister("uo", &version, &FileType::Json)
+        .unwrap();
 
     let list = registry.list();
     assert_eq!(list.len(), 0);
@@ -53,7 +55,9 @@ fn test_integration_declared_latest() {
     let file = fs::read(path).unwrap();
     assert!(!file.is_empty());
 
-    registry.unregister(&ontology_id, &version, &FileType::Json);
+    registry
+        .unregister(&ontology_id, &version, &FileType::Json)
+        .unwrap();
 
     let list = registry.list();
     assert_eq!(list.len(), 0);

@@ -463,11 +463,13 @@ mod tests {
 
         assert!(target_path.exists());
 
-        registry.unregister(
-            "todelete",
-            &Version::Declared("2024-05-05".to_string()),
-            &FileType::Json,
-        );
+        registry
+            .unregister(
+                "todelete",
+                &Version::Declared("2024-05-05".to_string()),
+                &FileType::Json,
+            )
+            .unwrap();
 
         assert!(!target_path.exists());
     }
