@@ -23,7 +23,7 @@ pub enum FileType {
 }
 
 impl FileType {
-    pub(crate) fn as_file_ending(&self) -> &'static str {
+    pub fn as_file_ending(&self) -> &'static str {
         match self {
             FileType::Json => ".json",
             FileType::Obo => ".obo",
