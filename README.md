@@ -1,12 +1,17 @@
 # Example
 
 ```rust
-let version = Version::Latest;
-let ontology_id = "hp".to_string();
+let version = Version::Declared("2026-01-16".to_string());
 let tmp_dir = TempDir::new().unwrap();
-let registry = FileSystemOntologyRegistry::new(tmp_dir.keep(), BioRegistryMetadataProvider::default (), ObolibraryProvider::default ());
+let registry = FileSystemOntologyRegistry::new(
+tmp_dir.keep(),
+BioRegistryMetadataProvider::default (),
+OboLibraryProvider::default (),
+);
 
-let file_dir = registry.register( & ontology_id, & version, & FileType::Json).unwrap();
+let res = registry
+.register("uo", version.clone(), FileType::Json)
+.unwrap();
 
 // Load ontology
 ```
