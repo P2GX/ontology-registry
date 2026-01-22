@@ -1,17 +1,19 @@
 [package]
-authors = ["Rouven Reuter", "Patrick Simon Nairne"]
+authors = ["Rouven Reuter <Rouven.Reuter@proton.me>", "Patrick Simon Nairne <patrick-simon.nairne@bih-charite.de>"]
 description = "Crate that lets you download, store and register ontologies"
 edition = "2024"
 homepage = "https://robinsongroup.github.io/"
-license = "MIT"
 name = "ontology-registry"
 version = "0.3.0"
+repository = "https://github.com/P2GX/ontology-registry"
+keywords = ["ontology", "hpo", "bioinformatics", "obolibrary", "obo"]
+readme = "README.md"
+license-file = "LICENSE"
 
 [dependencies]
 reqwest = { version = "0.13", features = ["blocking", "json"] }
 thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
-
 
 [dev-dependencies]
 mockito = "1.7.1"
