@@ -3,7 +3,7 @@ use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntolo
 use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
 use ontology_registry::enums::{FileType, Version};
 use ontology_registry::traits::OntologyRegistry;
-use std::fs;
+use std::io::Read;
 use tempfile::TempDir;
 
 #[test]
@@ -16,17 +16,19 @@ fn test_integration_declared_version() {
         OboLibraryProvider::default(),
     );
 
-    registry.register("uo", &version, &FileType::Json).unwrap();
+    registry
+        .register("uo", version.clone(), FileType::Json)
+        .unwrap();
     let list = registry.list();
     assert_eq!(list.len(), 1);
 
-    let path = registry.get("uo", &version, &FileType::Json).unwrap();
-    let file = fs::read(path).unwrap();
-    assert!(!file.is_empty());
+    let mut file = registry.get("uo", version.clone(), FileType::Json).unwrap();
+    let mut loaded_content = String::new();
+    file.read_to_string(&mut loaded_content).unwrap();
 
-    registry
-        .unregister("uo", &version, &FileType::Json)
-        .unwrap();
+    assert!(!loaded_content.is_empty());
+
+    registry.unregister("uo", version, FileType::Json).unwrap();
 
     let list = registry.list();
     assert_eq!(list.len(), 0);
@@ -44,19 +46,22 @@ fn test_integration_declared_latest() {
     );
 
     registry
-        .register(&ontology_id, &version, &FileType::Json)
+        .register(&ontology_id, version.clone(), FileType::Json)
         .unwrap();
     let list = registry.list();
     assert_eq!(list.len(), 1);
 
-    let path = registry
-        .get(&ontology_id, &version, &FileType::Json)
+    let mut file = registry
+        .get(&ontology_id, version.clone(), FileType::Json)
         .unwrap();
-    let file = fs::read(path).unwrap();
-    assert!(!file.is_empty());
+
+    let mut loaded_content = String::new();
+    file.read_to_string(&mut loaded_content).unwrap();
+
+    assert!(!loaded_content.is_empty());
 
     registry
-        .unregister(&ontology_id, &version, &FileType::Json)
+        .unregister(&ontology_id, version, FileType::Json)
         .unwrap();
 
     let list = registry.list();

@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Version {
     Latest,
     Declared(String),
@@ -15,7 +15,7 @@ impl Display for Version {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FileType {
     Json,
     Obo,
