@@ -22,21 +22,16 @@ pub trait OntologyProvider {
 pub trait OntologyRegistry {
     fn register(
         &self,
-        ontology_id: impl Into<String>,
+        ontology_id: &str,
         version: Version,
         file_type: FileType,
     ) -> Result<impl Read, OntologyRegistryError>;
     fn unregister(
         &self,
-        ontology_id: impl Into<String>,
+        ontology_id: &str,
         version: Version,
         file_type: FileType,
     ) -> Result<(), OntologyRegistryError>;
-    fn get(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Option<impl Read>;
+    fn get(&self, ontology_id: &str, version: Version, file_type: FileType) -> Option<impl Read>;
     fn list(&self) -> Vec<String>;
 }

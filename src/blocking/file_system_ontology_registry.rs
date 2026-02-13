@@ -1,11 +1,12 @@
 use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProvider, OntologyProvider, OntologyRegistry};
-use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{fs, process};
 
 #[derive(Debug)]
 /// A registry implementation that manages ontologies as files on the local filesystem.
@@ -68,6 +69,20 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegi
         }
     }
 
+    fn create_temp_dir(&self) -> Result<PathBuf, OntologyRegistryError> {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+
+        let pid = process::id();
+        let dir_name = format!("tmp_{}_{}", timestamp, pid);
+        let tmp_dir = self.registry_path.join(dir_name);
+        fs::create_dir_all(&tmp_dir).map_err(|_| OntologyRegistryError::NoRegistry)?;
+
+        Ok(tmp_dir)
+    }
+
     fn construct_registry_file_name(
         &self,
         ontology_id: &str,
@@ -100,16 +115,16 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
     /// * File I/O operations (creation, writing, renaming) fail.
     fn register(
         &self,
-        ontology_id: impl Into<String>,
+        ontology_id: &str,
         version: Version,
         file_type: FileType,
     ) -> Result<impl Read, OntologyRegistryError> {
         let mut out_path = self.registry_path.clone();
-        let o_id = ontology_id.into();
-        let resolved_version = self.resolve_version(&o_id, &version)?;
+
+        let resolved_version = self.resolve_version(ontology_id, &version)?;
 
         let registry_file_name =
-            self.construct_registry_file_name(&o_id, &resolved_version, &file_type);
+            self.construct_registry_file_name(ontology_id, &resolved_version, &file_type);
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
@@ -127,10 +142,10 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
                 .map_err(|_| OntologyRegistryError::NoRegistry)?;
         }
 
-        let provider_file_name = format!("{}{}", o_id, file_type.as_file_ending());
+        let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
 
-        let mut reader = self.ontology_provider.provide_ontology(
-            &o_id,
+        let mut ontology_reader = self.ontology_provider.provide_ontology(
+            ontology_id,
             &provider_file_name,
             &resolved_version,
         )?;
@@ -153,38 +168,57 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
         }
 
         let temp_file_name = format!("{}.tmp", registry_file_name);
-        let mut temp_path = self.registry_path.clone();
-        temp_path.push(&temp_file_name);
+        let temp_dir = self.create_temp_dir()?;
+        let temp_file_dir = temp_dir.join(temp_file_name);
 
         let mut temp_file =
-            File::create(&temp_path).map_err(|_| OntologyRegistryError::UnableToRegister {
-                reason: format!("Unable to create temporary file '{}'", temp_path.display()),
+            File::create(&temp_file_dir).map_err(|_| OntologyRegistryError::UnableToRegister {
+                reason: format!(
+                    "Unable to create temporary file '{}'",
+                    temp_file_dir.display()
+                ),
             })?;
 
         let mut buffer: Vec<u8> = vec![];
-        let _ = reader.read_to_end(&mut buffer).unwrap();
+        let _ = ontology_reader.read_to_end(&mut buffer).unwrap();
 
         if temp_file.write_all(buffer.as_slice()).is_err() {
-            let _ = fs::remove_file(&temp_path);
+            let _ = fs::remove_file(&temp_file_dir);
             return Err(OntologyRegistryError::UnableToRegister {
                 reason: format!(
                     "Unable to write to temporary file '{}'",
-                    temp_path.display()
+                    temp_file_dir.display()
                 ),
             });
         }
 
         drop(temp_file);
 
-        fs::rename(&temp_path, &out_path).map_err(|_| {
-            let _ = fs::remove_file(&temp_path);
+        fs::rename(&temp_file_dir, &out_path).map_err(|err| {
+            let _ = fs::remove_file(&temp_file_dir);
             OntologyRegistryError::UnableToRegister {
-                reason: format!("Unable to rename temporary file '{}'", temp_path.display()),
+                reason: format!(
+                    "Unable to rename temporary file '{}'. Error: {}",
+                    temp_file_dir.display(),
+                    err
+                ),
             }
         })?;
 
-        File::open(&out_path).map_err(|e| OntologyRegistryError::UnableToRegister {
-            reason: format!("Unable to open final file '{}': {}", out_path.display(), e),
+        fs::remove_dir_all(&temp_dir).map_err(|err| OntologyRegistryError::UnableToRegister {
+            reason: format!(
+                "Unable to delete temp directory '{}': {}",
+                temp_dir.display(),
+                err
+            ),
+        })?;
+
+        File::open(&out_path).map_err(|err| OntologyRegistryError::UnableToRegister {
+            reason: format!(
+                "Unable to open final file '{}': {}",
+                out_path.display(),
+                err
+            ),
         })
     }
 
@@ -194,18 +228,16 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
     /// This operation is thread-safe regarding the `write_lock`.
     fn unregister(
         &self,
-        ontology_id: impl Into<String>,
+        ontology_id: &str,
         version: Version,
         file_type: FileType,
     ) -> Result<(), OntologyRegistryError> {
-        let o_id = ontology_id.into();
-
-        let resolved_version = self.resolve_version(&o_id, &version)?;
+        let resolved_version = self.resolve_version(ontology_id, &version)?;
 
         let file_path = self
             .registry_path
             .clone()
-            .join(self.construct_registry_file_name(&o_id, &resolved_version, &file_type));
+            .join(self.construct_registry_file_name(ontology_id, &resolved_version, &file_type));
 
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -222,17 +254,11 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
     ///
     /// Returns `None` if the ontology is not currently found in the local registry
     /// or if the version could not be resolved.
-    fn get(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Option<impl Read> {
-        let o_id = ontology_id.into();
-        let resolved_version = self.resolve_version(&o_id, &version).ok()?;
+    fn get(&self, ontology_id: &str, version: Version, file_type: FileType) -> Option<impl Read> {
+        let resolved_version = self.resolve_version(ontology_id, &version).ok()?;
 
         let file_path = self.registry_path.join(self.construct_registry_file_name(
-            &o_id,
+            ontology_id,
             &resolved_version,
             &file_type,
         ));
