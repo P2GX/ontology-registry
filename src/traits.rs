@@ -16,7 +16,7 @@ pub trait OntologyProvider {
         ontology_id: &str,
         file_name: &str,
         version: &str,
-    ) -> Result<String, OntologyRegistryError>;
+    ) -> Result<impl Read, OntologyRegistryError>;
 }
 
 pub trait OntologyRegistry {
