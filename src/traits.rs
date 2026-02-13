@@ -3,14 +3,14 @@ use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
 use std::io::Read;
 
-pub trait OntologyMetadataProvider {
+pub trait OntologyMetadataProviding {
     fn provide_metadata(
         &self,
         ontology_id: &str,
     ) -> Result<OntologyMetadata, OntologyRegistryError>;
 }
 
-pub trait OntologyProvider {
+pub trait OntologyProviding {
     fn provide_ontology(
         &self,
         ontology_id: &str,
@@ -19,7 +19,7 @@ pub trait OntologyProvider {
     ) -> Result<impl Read, OntologyRegistryError>;
 }
 
-pub trait OntologyRegistry {
+pub trait OntologyRegistration {
     fn register(
         &self,
         ontology_id: &str,

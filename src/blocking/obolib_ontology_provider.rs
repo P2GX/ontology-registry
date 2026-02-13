@@ -1,5 +1,5 @@
 use crate::error::OntologyRegistryError;
-use crate::traits::OntologyProvider;
+use crate::traits::OntologyProviding;
 use std::io::Read;
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl OboLibraryProvider {
     }
 }
 
-impl OntologyProvider for OboLibraryProvider {
+impl OntologyProviding for OboLibraryProvider {
     fn provide_ontology(
         &self,
         ontology_id: &str,
@@ -56,7 +56,7 @@ impl OntologyProvider for OboLibraryProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::OntologyProvider;
+    use crate::traits::OntologyProviding;
     use mockito::Server;
 
     #[test]

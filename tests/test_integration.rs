@@ -2,7 +2,7 @@ use ontology_registry::blocking::bio_registry_metadata_provider::BioRegistryMeta
 use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
 use ontology_registry::enums::{FileType, Version};
-use ontology_registry::traits::OntologyRegistry;
+use ontology_registry::traits::OntologyRegistration;
 use std::io::Read;
 use tempfile::TempDir;
 
