@@ -1,6 +1,6 @@
 use crate::dataclasses::OntologyMetadata;
 use crate::error::OntologyRegistryError;
-use crate::traits::OntologyMetadataProvider;
+use crate::traits::OntologyMetadataProviding;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +42,7 @@ impl Default for BioRegistryMetadataProvider {
         BioRegistryMetadataProvider::new("https://bioregistry.io/api/")
     }
 }
-impl OntologyMetadataProvider for BioRegistryMetadataProvider {
+impl OntologyMetadataProviding for BioRegistryMetadataProvider {
     fn provide_metadata(
         &self,
         ontology_id: &str,

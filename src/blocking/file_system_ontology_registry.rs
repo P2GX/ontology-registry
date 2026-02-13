@@ -1,6 +1,6 @@
 use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
-use crate::traits::{OntologyMetadataProvider, OntologyProvider, OntologyRegistry};
+use crate::traits::{OntologyMetadataProviding, OntologyProviding, OntologyRegistration};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -27,7 +27,7 @@ use std::{fs, process};
 ///
 /// * `MDP`: **OntologyMetadataProvider** - Used to resolve version information (e.g., determining what "Latest" maps to).
 /// * `OP`: **OntologyProvider** - Used to fetch the actual ontology content (bytes) from a remote or external source.
-pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProvider, OP: OntologyProvider> {
+pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProviding, OP: OntologyProviding> {
     /// The root directory where ontology files will be stored.
     registry_path: PathBuf,
     /// The provider used to fetch ontology data during registration.
@@ -38,7 +38,7 @@ pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProvider, OP: Ontolog
     write_lock: Mutex<()>,
 }
 
-impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegistry<MDP, OP> {
+impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRegistry<MDP, OP> {
     /// Creates a new `FileSystemOntologyRegistry`.
     ///
     /// # Arguments
@@ -93,7 +93,7 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> FileSystemOntologyRegi
     }
 }
 
-impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
+impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     for FileSystemOntologyRegistry<MDP, OP>
 {
     /// Registers an ontology by downloading it and saving it to the local filesystem.
@@ -314,7 +314,7 @@ mod tests {
         }
     }
 
-    impl OntologyMetadataProvider for MockMetadataProvider {
+    impl OntologyMetadataProviding for MockMetadataProvider {
         fn provide_metadata(
             &self,
             ontology_id: &str,
@@ -352,7 +352,7 @@ mod tests {
         }
     }
 
-    impl OntologyProvider for MockOntologyProvider {
+    impl OntologyProviding for MockOntologyProvider {
         fn provide_ontology(
             &self,
             ontology_id: &str,
