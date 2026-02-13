@@ -1,6 +1,5 @@
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyProvider;
-use std::io::Read;
 
 #[derive(Debug)]
 pub struct OboLibraryProvider {
@@ -31,7 +30,7 @@ impl OntologyProvider for OboLibraryProvider {
         ontology_id: &str,
         file_name: &str,
         version: &str,
-    ) -> Result<impl Read, OntologyRegistryError> {
+    ) -> Result<String, OntologyRegistryError> {
         let url = format!(
             "{}/{}/releases/{}/{}",
             self.base_url, ontology_id, version, file_name
@@ -40,12 +39,19 @@ impl OntologyProvider for OboLibraryProvider {
         let resp = self.client.get(url.clone()).send();
 
         match resp {
-            Ok(response) => match response.error_for_status() {
-                Ok(response) => Ok(response),
-                Err(err) => Err(OntologyRegistryError::ProvidingOntology {
-                    reason: err.to_string(),
-                }),
-            },
+            Ok(response) => {
+                let response = response.error_for_status().map_err(|err| {
+                    OntologyRegistryError::ProvidingOntology {
+                        reason: err.to_string(),
+                    }
+                })?;
+
+                Ok(response
+                    .text()
+                    .map_err(|err| OntologyRegistryError::ProvidingOntology {
+                        reason: err.to_string(),
+                    })?)
+            }
             Err(err) => Err(OntologyRegistryError::ProvidingOntology {
                 reason: err.to_string(),
             }),
@@ -76,15 +82,11 @@ mod tests {
 
         let provider = OboLibraryProvider::new(server.url());
 
-        let mut result = provider
-            .provide_ontology(ontology_ontology_id, file_name, "2023-01-01")
-            .unwrap();
+        let result = provider.provide_ontology(ontology_ontology_id, file_name, "2023-01-01");
 
         mock.assert();
-        let mut buffer = String::new();
-        let _ = result.read_to_string(&mut buffer).unwrap();
-
-        assert_eq!(buffer, expected_body);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_body);
     }
 
     #[test]
@@ -108,15 +110,10 @@ mod tests {
 
         let provider = OboLibraryProvider::new(server.url());
 
-        let mut result = provider
-            .provide_ontology(ontology_ontology_id, file_name, "2023-01-01")
-            .unwrap();
+        let result = provider.provide_ontology(ontology_ontology_id, file_name, "2023-01-01");
 
         mock.assert();
-        let mut buffer = String::new();
-        let _ = result.read_to_string(&mut buffer).unwrap();
-
-        assert_eq!(buffer, expected_body);
+        assert_eq!(result.unwrap(), expected_body);
     }
 
     #[test]
