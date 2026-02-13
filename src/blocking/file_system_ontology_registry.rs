@@ -113,14 +113,12 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
-            return fs::File::open(&out_path).map_err(|e| {
-                OntologyRegistryError::UnableToRegister {
-                    reason: format!(
-                        "Unable to open existing file '{}': {}",
-                        out_path.display(),
-                        e
-                    ),
-                }
+            return File::open(&out_path).map_err(|e| OntologyRegistryError::UnableToRegister {
+                reason: format!(
+                    "Unable to open existing file '{}': {}",
+                    out_path.display(),
+                    e
+                ),
             });
         }
 
@@ -131,7 +129,7 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
 
         let provider_file_name = format!("{}{}", o_id, file_type.as_file_ending());
 
-        let resp = self.ontology_provider.provide_ontology(
+        let mut reader = self.ontology_provider.provide_ontology(
             &o_id,
             &provider_file_name,
             &resolved_version,
@@ -145,14 +143,12 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
                 })?;
 
         if out_path.exists() {
-            return fs::File::open(&out_path).map_err(|e| {
-                OntologyRegistryError::UnableToRegister {
-                    reason: format!(
-                        "Unable to open existing file '{}': {}",
-                        out_path.display(),
-                        e
-                    ),
-                }
+            return File::open(&out_path).map_err(|e| OntologyRegistryError::UnableToRegister {
+                reason: format!(
+                    "Unable to open existing file '{}': {}",
+                    out_path.display(),
+                    e
+                ),
             });
         }
 
@@ -161,11 +157,14 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
         temp_path.push(&temp_file_name);
 
         let mut temp_file =
-            fs::File::create(&temp_path).map_err(|_| OntologyRegistryError::UnableToRegister {
+            File::create(&temp_path).map_err(|_| OntologyRegistryError::UnableToRegister {
                 reason: format!("Unable to create temporary file '{}'", temp_path.display()),
             })?;
 
-        if temp_file.write_all(resp.as_bytes()).is_err() {
+        let mut buffer: Vec<u8> = vec![];
+        let _ = reader.read_to_end(&mut buffer).unwrap();
+
+        if temp_file.write_all(buffer.as_slice()).is_err() {
             let _ = fs::remove_file(&temp_path);
             return Err(OntologyRegistryError::UnableToRegister {
                 reason: format!(
@@ -184,7 +183,7 @@ impl<MDP: OntologyMetadataProvider, OP: OntologyProvider> OntologyRegistry
             }
         })?;
 
-        fs::File::open(&out_path).map_err(|e| OntologyRegistryError::UnableToRegister {
+        File::open(&out_path).map_err(|e| OntologyRegistryError::UnableToRegister {
             reason: format!("Unable to open final file '{}': {}", out_path.display(), e),
         })
     }
@@ -268,6 +267,7 @@ mod tests {
     use super::*;
     use crate::dataclasses::OntologyMetadata;
     use std::collections::HashMap;
+    use std::io::Cursor;
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -332,13 +332,16 @@ mod tests {
             ontology_id: &str,
             _file_name: &str,
             _version: &str,
-        ) -> Result<String, OntologyRegistryError> {
-            self.content
-                .get(ontology_id)
-                .cloned()
-                .ok_or(OntologyRegistryError::UnableToRegister {
-                    reason: "Content not found".into(),
-                })
+        ) -> Result<impl Read, OntologyRegistryError> {
+            Ok(Cursor::new(
+                self.content
+                    .get(ontology_id)
+                    .cloned()
+                    .ok_or(OntologyRegistryError::UnableToRegister {
+                        reason: "Content not found".into(),
+                    })?
+                    .into_bytes(),
+            ))
         }
     }
 
