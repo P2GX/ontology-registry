@@ -5,23 +5,29 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
 [![RobisonGroup](https://img.shields.io/badge/Robinson%20Group-blue)](https://robinsongroup.github.io/)
 
-**Ontology-Registry** is a Rust crate designed to seamlessly fetch, manage, and persist ontology files directly from
-the [OBO Foundry](https://obofoundry.org/).
+**A robust, thread-safe Rust library for managing the lifecycle of biological ontologies.**
 
-It acts as a centralized local cache, ensuring that ontologies are persisted on your machine and easily accessible by
-any application using this crate, reducing network redundancy and improving load times.
+`ontology-registry` automates the process of resolving, downloading, and caching ontology files (JSON, OBO, OWL). It
+acts as a centralized local registry, ensuring that your applications always have access to the data they need without
+redundant network requests or race conditions.
+
+---
 
 ## ✨ Features
 
-* **OBO Foundry Integration:** Pull ontology files straight from the source "out of the box."
-* **Local Persistence:** Automatically stores downloaded ontologies in a standard directory on your machine.
-* **Shared Registry:** The storage location is designed to be accessible by multiple applications, preventing duplicate
-  downloads across different projects.
-* **Offline Access:** Once downloaded, ontologies are available without an active internet connection.
+* **🚀 Smart Caching:** Automatically downloads ontologies from the [OBO Foundry](https://obofoundry.org/) and persists
+  them locally. Subsequent requests load instantly from the disk.
+* **🔄 Version Resolution:** resolving `Version::Latest` automatically queries [BioRegistry.io](https://bioregistry.io)
+  to find the most recent semantic version.
+* **🛡️ Thread-Safe & Atomic:** Built for concurrency. It uses Mutex locks and atomic file writes (downloading to `.tmp`
+  first) to ensure you never read a corrupted or partially downloaded file.
+* **🔌 Modular Architecture:** The logic is split into `MetadataProviding`, `OntologyProviding`, and `Registration`
+  traits, allowing you to swap out backends if needed.
+* **📂 Multiple Formats:** First-class support for `.json`, `.obo`, and `.owl` formats.
 
 ## 📦 Installation
 
-Run the following command in your project directory:
+Add this to your `Cargo.toml`:
 
 ```sh
 cargo add ontology-registry
@@ -34,18 +40,64 @@ use ontology_registry::blocking::bio_registry_metadata_provider::BioRegistryMeta
 use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
 use ontology_registry::enums::{FileType, Version};
+use ontology_registry::traits::OntologyRegistration;
+use std::path::PathBuf;
+use std::io::Read;
 
-let version = Version::Declared("2026-01-16".to_string());
-let tmp_dir = TempDir::new().unwrap();
-let registry = FileSystemOntologyRegistry::new(
-tmp_dir.keep(),
-BioRegistryMetadataProvider::default (),
-OboLibraryProvider::default (),
-);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Setup the registry with standard providers
+    // In a real app, use a persistent path like "~/.cache/ontologies"
+    let cache_dir = PathBuf::from("./local_ontology_cache");
 
-let res = registry
-.register("uo", version.clone(), FileType::Json)
-.unwrap();
+    let registry = FileSystemOntologyRegistry::new(
+        cache_dir,
+        BioRegistryMetadataProvider::default(), // Resolves versions via BioRegistry.io
+        OboLibraryProvider::default(),          // Downloads content from OBO Library
+    );
 
-// Load ontology
+    // 2. Register (Download & Cache)
+    // This resolves 'Latest' to a specific date (e.g., "2024-01-01")
+    let mut reader = registry.register(
+        "mondo",
+        Version::Latest,
+        FileType::Obo
+    )?;
+
+    // 3. Read the content
+    let mut content = String::new();
+    reader.read_to_string(&mut content)?;
+
+    println!("Successfully loaded Mondo Ontology ({} bytes)", content.len());
+    Ok(())
+}
 ```
+
+### Pinning a Specific Version
+
+If you need reproducibility, you can request a specific version string.
+
+```rust
+use ontology_registry::enums::{FileType, Version};
+use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
+use ontology_registry::traits::OntologyRegistration;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = FileSystemOntologyRegistry::default();
+
+    let version = Version::Declared("2023-01-01".to_string());
+
+    let reader = registry.register(
+        "go",
+        version,
+        FileType::Owl
+    )?;
+}
+```
+
+## 📂 Supported Formats
+
+| Enum Variant     | Extension | Description                  |
+|:-----------------|:----------|:-----------------------------|
+| `FileType::Json` | `.json`   | OBO Graph JSON format        |
+| `FileType::Obo`  | `.obo`    | Standard OBO flat file       |
+| `FileType::Owl`  | `.owl`    | Web Ontology Language format |
