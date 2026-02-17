@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default, Serialize, Deserialize)]
 pub enum Version {
+    #[default]
     Latest,
     Declared(String),
 }
@@ -15,7 +17,8 @@ impl Display for Version {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FileType {
     Json,
     Obo,

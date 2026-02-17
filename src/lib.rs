@@ -82,3 +82,6 @@ pub mod traits;
 pub use blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
 pub use blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 pub use blocking::obolib_ontology_provider::OboLibraryProvider;
+pub use enums::*;
+pub use error::*;
+pub use traits::*;
