@@ -1,5 +1,5 @@
-use crate::dataclasses::OntologyMetadata;
 use crate::error::OntologyRegistryError;
+use crate::ontology_metadata::OntologyMetadata;
 use crate::traits::OntologyMetadataProviding;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};

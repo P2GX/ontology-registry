@@ -291,7 +291,7 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dataclasses::OntologyMetadata;
+    use crate::ontology_metadata::OntologyMetadata;
     use std::collections::HashMap;
     use std::io::Cursor;
     use std::sync::Arc;

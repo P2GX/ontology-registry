@@ -10,9 +10,9 @@
 //! Implementing these traits allows users to create custom backends (e.g., an S3-backed registry
 //! or a custom internal metadata server) while keeping the rest of the application logic unchanged.
 
-use crate::dataclasses::OntologyMetadata;
 use crate::enums::{FileType, Version};
 use crate::error::OntologyRegistryError;
+use crate::ontology_metadata::OntologyMetadata;
 use std::io::Read;
 
 /// Defines how to retrieve metadata about an ontology.
