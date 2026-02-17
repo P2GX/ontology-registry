@@ -78,3 +78,7 @@ pub mod enums;
 pub mod error;
 pub mod ontology_metadata;
 pub mod traits;
+
+pub use blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
+pub use blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
+pub use blocking::obolib_ontology_provider::OboLibraryProvider;
