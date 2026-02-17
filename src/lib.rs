@@ -68,13 +68,13 @@
 //! ## Modules
 //!
 //! * [`blocking`]: Contains concrete implementations of the providers and registry for synchronous (blocking) operations.
-//! * [`dataclasses`]: Structs representing ontology metadata.
+//! * [`ontology_metadata`]: Structs representing ontology metadata.
 //! * [`enums`]: Enumerations for `Version` strategies and `FileType` formats.
 //! * [`error`]: Crate-specific error types.
 //! * [`traits`]: The core definitions ensuring modularity and extensibility.
 
 pub mod blocking;
-pub mod dataclasses;
 pub mod enums;
 pub mod error;
+pub mod ontology_metadata;
 pub mod traits;
