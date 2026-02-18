@@ -281,7 +281,6 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
         let mut files = Vec::new();
 
         if let Ok(entries) = fs::read_dir(self.registry_path.clone()) {
-            dbg!(&entries);
             for entry in entries.flatten() {
                 let path = entry.path();
 
