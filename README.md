@@ -39,7 +39,7 @@ cargo add ontology-registry
 use ontology_registry::blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
 use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
-use ontology_registry::enums::{FileType, Version};
+use ontology_registry::enums::{FileType, Version, SupportedOntology};
 use ontology_registry::traits::OntologyRegistration;
 use std::path::PathBuf;
 use std::io::Read;
@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Register (Download & Cache)
     // This resolves 'Latest' to a specific date (e.g., "2024-01-01")
     let mut reader = registry.register(
-        "mondo",
+        SupportedOntology::MONDO, // This can also just be a string "mondo"
         Version::Latest,
         FileType::Obo
     )?;
