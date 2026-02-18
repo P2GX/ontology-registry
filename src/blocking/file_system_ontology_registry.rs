@@ -115,16 +115,22 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// * File I/O operations (creation, writing, renaming) fail.
     fn register(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<impl Read, OntologyRegistryError> {
+        if !self.registry_path.exists() {
+            fs::create_dir_all(&self.registry_path)
+                .map_err(|_| OntologyRegistryError::NoRegistry)?;
+        }
+
+        let ontology_id = ontology_id.into();
         let mut out_path = self.registry_path.clone();
 
-        let resolved_version = self.resolve_version(ontology_id, &version)?;
+        let resolved_version = self.resolve_version(&ontology_id, &version)?;
 
         let registry_file_name =
-            self.construct_registry_file_name(ontology_id, &resolved_version, &file_type);
+            self.construct_registry_file_name(&ontology_id, &resolved_version, &file_type);
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
@@ -137,15 +143,10 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
             });
         }
 
-        if !self.registry_path.exists() {
-            fs::create_dir_all(&self.registry_path)
-                .map_err(|_| OntologyRegistryError::NoRegistry)?;
-        }
-
         let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
 
         let mut ontology_reader = self.ontology_provider.provide_ontology(
-            ontology_id,
+            &ontology_id,
             &provider_file_name,
             &resolved_version,
         )?;
@@ -228,16 +229,17 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// This operation is thread-safe regarding the `write_lock`.
     fn unregister(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<(), OntologyRegistryError> {
-        let resolved_version = self.resolve_version(ontology_id, &version)?;
+        let ontology_id = ontology_id.into();
+        let resolved_version = self.resolve_version(&ontology_id, &version)?;
 
         let file_path = self
             .registry_path
             .clone()
-            .join(self.construct_registry_file_name(ontology_id, &resolved_version, &file_type));
+            .join(self.construct_registry_file_name(&ontology_id, &resolved_version, &file_type));
 
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -254,11 +256,17 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Returns `None` if the ontology is not currently found in the local registry
     /// or if the version could not be resolved.
-    fn get(&self, ontology_id: &str, version: Version, file_type: FileType) -> Option<impl Read> {
-        let resolved_version = self.resolve_version(ontology_id, &version).ok()?;
+    fn get(
+        &self,
+        ontology_id: impl Into<String>,
+        version: Version,
+        file_type: FileType,
+    ) -> Option<impl Read> {
+        let ontology_id = ontology_id.into();
+        let resolved_version = self.resolve_version(&ontology_id, &version).ok()?;
 
         let file_path = self.registry_path.join(self.construct_registry_file_name(
-            ontology_id,
+            &ontology_id,
             &resolved_version,
             &file_type,
         ));
