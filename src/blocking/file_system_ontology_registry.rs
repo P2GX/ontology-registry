@@ -27,7 +27,7 @@ use std::{fs, process};
 ///
 /// * `MDP`: **OntologyMetadataProvider** - Used to resolve version information (e.g., determining what "Latest" maps to).
 /// * `OP`: **OntologyProvider** - Used to fetch the actual ontology content (bytes) from a remote or external source.
-pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProviding, OP: OntologyProviding> {
+pub struct FileSystemOntologyRegistry<MDP, OP> {
     /// The root directory where ontology files will be stored.
     registry_path: PathBuf,
     /// The provider used to fetch ontology data during registration.
@@ -38,37 +38,7 @@ pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProviding, OP: Ontolo
     write_lock: Mutex<()>,
 }
 
-impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRegistry<MDP, OP> {
-    /// Creates a new `FileSystemOntologyRegistry`.
-    ///
-    /// # Arguments
-    ///
-    /// * `registry_path` - The directory path where ontologies will be saved.
-    /// * `metadata_provider` - The service to query for ontology version metadata.
-    /// * `ontology_provider` - The service to download ontology content from.
-    pub fn new(registry_path: PathBuf, metadata_provider: MDP, ontology_provider: OP) -> Self {
-        FileSystemOntologyRegistry {
-            registry_path,
-            metadata_provider,
-            ontology_provider,
-            write_lock: Mutex::new(()),
-        }
-    }
-
-    fn resolve_version(
-        &self,
-        ontology_id: &str,
-        version: &Version,
-    ) -> Result<String, OntologyRegistryError> {
-        match version {
-            Version::Latest => {
-                let meta_data = self.metadata_provider.provide_metadata(ontology_id)?;
-                Ok(meta_data.version)
-            }
-            Version::Declared(v) => Ok(v.to_string()),
-        }
-    }
-
+impl<MDP, OP> FileSystemOntologyRegistry<MDP, OP> {
     fn create_temp_dir(&self) -> Result<PathBuf, OntologyRegistryError> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -90,6 +60,37 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRe
         file_type: &FileType,
     ) -> String {
         format!("{}_{}{}", ontology_id, version, file_type.as_file_ending())
+    }
+}
+
+impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRegistry<MDP, OP> {
+    /// Creates a new `FileSystemOntologyRegistry`.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry_path` - The directory path where ontologies will be saved.
+    /// * `metadata_provider` - The service to query for ontology version metadata.
+    /// * `ontology_provider` - The service to download ontology content from.
+    pub fn new(registry_path: PathBuf, metadata_provider: MDP, ontology_provider: OP) -> Self {
+        FileSystemOntologyRegistry {
+            registry_path,
+            metadata_provider,
+            ontology_provider,
+            write_lock: Mutex::new(()),
+        }
+    }
+    fn resolve_version(
+        &self,
+        ontology_id: &str,
+        version: &Version,
+    ) -> Result<String, OntologyRegistryError> {
+        match version {
+            Version::Latest => {
+                let meta_data = self.metadata_provider.provide_metadata(ontology_id)?;
+                Ok(meta_data.version)
+            }
+            Version::Declared(v) => Ok(v.to_string()),
+        }
     }
 }
 
