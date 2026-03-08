@@ -180,7 +180,11 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
             })?;
 
         let mut buffer: Vec<u8> = vec![];
-        let _ = ontology_reader.read_to_end(&mut buffer).unwrap();
+        let _ = ontology_reader.read_to_end(&mut buffer).map_err(|err| {
+            OntologyRegistryError::UnableToRegister {
+                reason: err.to_string(),
+            }
+        })?;
 
         if temp_file.write_all(buffer.as_slice()).is_err() {
             let _ = fs::remove_file(&temp_file_dir);
