@@ -1,3 +1,4 @@
+use crate::Version;
 use crate::error::OntologyRegistryError;
 use crate::traits::OntologyProviding;
 use std::io::Read;
@@ -11,7 +12,10 @@ impl Default for OboLibraryProvider {
     fn default() -> Self {
         OboLibraryProvider {
             base_url: "https://purl.obolibrary.org/obo".to_string(),
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::blocking::Client::builder()
+                .user_agent("Mozilla/5.0 (compatible; ontology-registry/1.0)")
+                .build()
+                .expect("Failed to build HTTP client"),
         }
     }
 }
@@ -20,7 +24,10 @@ impl OboLibraryProvider {
     pub fn new(base_url: String) -> Self {
         OboLibraryProvider {
             base_url,
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::blocking::Client::builder()
+                .user_agent("Mozilla/5.0 (compatible; ontology-registry/1.0)")
+                .build()
+                .expect("Failed to build HTTP client"),
         }
     }
 }
@@ -30,26 +37,56 @@ impl OntologyProviding for OboLibraryProvider {
         &self,
         ontology_id: &str,
         file_name: &str,
-        version: &str,
+        version: &Version,
     ) -> Result<impl Read, OntologyRegistryError> {
-        let url = format!(
-            "{}/{}/releases/{}/{}",
-            self.base_url, ontology_id, version, file_name
-        );
+        let urls = match version {
+            Version::Latest => {
+                vec![format!("{}/{}/{}", self.base_url, ontology_id, file_name)]
+            }
+            Version::Declared(v) => {
+                vec![
+                    format!(
+                        "{}/{}/releases/{}/{}",
+                        self.base_url, ontology_id, v, file_name
+                    ),
+                    format!("{}/{}/{}/{}", self.base_url, ontology_id, v, file_name),
+                ]
+            }
+        };
 
-        let resp = self.client.get(url.clone()).send();
+        let mut last_status = None;
 
-        match resp {
-            Ok(response) => match response.error_for_status() {
-                Ok(response) => Ok(response),
-                Err(err) => Err(OntologyRegistryError::ProvidingOntology {
-                    reason: err.to_string(),
-                }),
-            },
-            Err(err) => Err(OntologyRegistryError::ProvidingOntology {
-                reason: err.to_string(),
-            }),
+        for url in &urls {
+            let resp = self.client.get(url).send();
+
+            match resp {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        return Ok(response);
+                    } else if response.status() == reqwest::StatusCode::NOT_FOUND {
+                        last_status = Some(response.status());
+                        continue;
+                    } else {
+                        return Err(OntologyRegistryError::ProvidingOntology {
+                            reason: format!("HTTP Error {} for {}", response.status(), url),
+                        });
+                    }
+                }
+                Err(err) => {
+                    return Err(OntologyRegistryError::ProvidingOntology {
+                        reason: format!("Network Error: {}", err),
+                    });
+                }
+            }
         }
+
+        Err(OntologyRegistryError::ProvidingOntology {
+            reason: format!(
+                "Ontology not found after trying {} patterns. Last status: {:?}",
+                urls.len(),
+                last_status.unwrap_or(reqwest::StatusCode::NOT_FOUND)
+            ),
+        })
     }
 }
 
@@ -76,8 +113,10 @@ mod tests {
 
         let provider = OboLibraryProvider::new(server.url());
 
+        let version = Version::from("2023-01-01");
+
         let mut result = provider
-            .provide_ontology(ontology_ontology_id, file_name, "2023-01-01")
+            .provide_ontology(ontology_ontology_id, file_name, &version)
             .unwrap();
 
         mock.assert();
@@ -108,8 +147,10 @@ mod tests {
 
         let provider = OboLibraryProvider::new(server.url());
 
+        let version = Version::from("2023-01-01");
+
         let mut result = provider
-            .provide_ontology(ontology_ontology_id, file_name, "2023-01-01")
+            .provide_ontology(ontology_ontology_id, file_name, &version)
             .unwrap();
 
         mock.assert();
@@ -130,7 +171,9 @@ mod tests {
 
         let provider = OboLibraryProvider::new(server.url());
 
-        let result = provider.provide_ontology("go", "go.owl", "2023-01-01");
+        let version = Version::from("2023-01-01");
+
+        let result = provider.provide_ontology("go", "go.owl", &version);
 
         mock.assert();
         assert!(result.is_err());

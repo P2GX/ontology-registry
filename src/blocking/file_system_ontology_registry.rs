@@ -128,10 +128,13 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
         let ontology_id = ontology_id.into();
         let mut out_path = self.registry_path.clone();
 
-        let resolved_version = self.resolve_version(&ontology_id, &version)?;
+        let resolved_version = Version::Declared(self.resolve_version(&ontology_id, &version)?);
 
-        let registry_file_name =
-            self.construct_registry_file_name(&ontology_id, &resolved_version, &file_type);
+        let registry_file_name = self.construct_registry_file_name(
+            &ontology_id,
+            &resolved_version.to_string(),
+            &file_type,
+        );
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
@@ -370,7 +373,7 @@ mod tests {
             &self,
             ontology_id: &str,
             _file_name: &str,
-            _version: &str,
+            _version: &Version,
         ) -> Result<impl Read, OntologyRegistryError> {
             Ok(Cursor::new(
                 self.content

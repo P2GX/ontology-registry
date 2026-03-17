@@ -50,7 +50,7 @@ pub trait OntologyProviding {
         &self,
         ontology_id: &str,
         file_name: &str,
-        version: &str,
+        version: &Version,
     ) -> Result<impl Read, OntologyRegistryError>;
 }
 
