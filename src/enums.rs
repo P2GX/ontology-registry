@@ -8,6 +8,12 @@ pub enum Version {
     Declared(String),
 }
 
+impl From<&str> for Version {
+    fn from(value: &str) -> Self {
+        Version::Declared(value.to_string())
+    }
+}
+
 impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
