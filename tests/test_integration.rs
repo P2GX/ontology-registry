@@ -1,8 +1,7 @@
-use ontology_registry::blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
-use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
-use ontology_registry::blocking::obolib_ontology_provider::OboLibraryProvider;
-use ontology_registry::enums::{FileType, Version};
-use ontology_registry::traits::OntologyRegistration;
+use ontology_registry::{
+    BioRegistryMetadataProvider, FileSystemOntologyRegistry, FileType, OboLibraryProvider,
+    OntologyRegistration, SupportedOntology, Version,
+};
 use std::io::Read;
 use tempfile::TempDir;
 
@@ -37,7 +36,8 @@ fn test_integration_declared_version() {
 #[test]
 fn test_integration_declared_latest() {
     let version = Version::Latest;
-    let ontology_id = "hp".to_string();
+    let file_format = FileType::Obo;
+    let ontology_id = SupportedOntology::HP;
     let tmp_dir = TempDir::new().unwrap();
     let registry = FileSystemOntologyRegistry::new(
         tmp_dir.keep(),
@@ -46,13 +46,15 @@ fn test_integration_declared_latest() {
     );
 
     registry
-        .register(&ontology_id, version.clone(), FileType::Json)
+        .register(ontology_id, version.clone(), file_format)
         .unwrap();
     let list = registry.list();
     assert_eq!(list.len(), 1);
+    assert!(list.first().unwrap().contains(&ontology_id.to_string()));
+    assert!(list.first().unwrap().contains(file_format.as_file_ending()));
 
     let mut file = registry
-        .get(&ontology_id, version.clone(), FileType::Json)
+        .get(ontology_id, version.clone(), file_format)
         .unwrap();
 
     let mut loaded_content = String::new();
@@ -61,7 +63,7 @@ fn test_integration_declared_latest() {
     assert!(!loaded_content.is_empty());
 
     registry
-        .unregister(&ontology_id, version, FileType::Json)
+        .unregister(ontology_id, version, file_format)
         .unwrap();
 
     let list = registry.list();

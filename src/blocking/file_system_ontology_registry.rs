@@ -27,7 +27,7 @@ use std::{fs, process};
 ///
 /// * `MDP`: **OntologyMetadataProvider** - Used to resolve version information (e.g., determining what "Latest" maps to).
 /// * `OP`: **OntologyProvider** - Used to fetch the actual ontology content (bytes) from a remote or external source.
-pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProviding, OP: OntologyProviding> {
+pub struct FileSystemOntologyRegistry<MDP, OP> {
     /// The root directory where ontology files will be stored.
     registry_path: PathBuf,
     /// The provider used to fetch ontology data during registration.
@@ -38,37 +38,7 @@ pub struct FileSystemOntologyRegistry<MDP: OntologyMetadataProviding, OP: Ontolo
     write_lock: Mutex<()>,
 }
 
-impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRegistry<MDP, OP> {
-    /// Creates a new `FileSystemOntologyRegistry`.
-    ///
-    /// # Arguments
-    ///
-    /// * `registry_path` - The directory path where ontologies will be saved.
-    /// * `metadata_provider` - The service to query for ontology version metadata.
-    /// * `ontology_provider` - The service to download ontology content from.
-    pub fn new(registry_path: PathBuf, metadata_provider: MDP, ontology_provider: OP) -> Self {
-        FileSystemOntologyRegistry {
-            registry_path,
-            metadata_provider,
-            ontology_provider,
-            write_lock: Mutex::new(()),
-        }
-    }
-
-    fn resolve_version(
-        &self,
-        ontology_id: &str,
-        version: &Version,
-    ) -> Result<String, OntologyRegistryError> {
-        match version {
-            Version::Latest => {
-                let meta_data = self.metadata_provider.provide_metadata(ontology_id)?;
-                Ok(meta_data.version)
-            }
-            Version::Declared(v) => Ok(v.to_string()),
-        }
-    }
-
+impl<MDP, OP> FileSystemOntologyRegistry<MDP, OP> {
     fn create_temp_dir(&self) -> Result<PathBuf, OntologyRegistryError> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -90,6 +60,37 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRe
         file_type: &FileType,
     ) -> String {
         format!("{}_{}{}", ontology_id, version, file_type.as_file_ending())
+    }
+}
+
+impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> FileSystemOntologyRegistry<MDP, OP> {
+    /// Creates a new `FileSystemOntologyRegistry`.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry_path` - The directory path where ontologies will be saved.
+    /// * `metadata_provider` - The service to query for ontology version metadata.
+    /// * `ontology_provider` - The service to download ontology content from.
+    pub fn new(registry_path: PathBuf, metadata_provider: MDP, ontology_provider: OP) -> Self {
+        FileSystemOntologyRegistry {
+            registry_path,
+            metadata_provider,
+            ontology_provider,
+            write_lock: Mutex::new(()),
+        }
+    }
+    fn resolve_version(
+        &self,
+        ontology_id: &str,
+        version: &Version,
+    ) -> Result<String, OntologyRegistryError> {
+        match version {
+            Version::Latest => {
+                let meta_data = self.metadata_provider.provide_metadata(ontology_id)?;
+                Ok(meta_data.version)
+            }
+            Version::Declared(v) => Ok(v.to_string()),
+        }
     }
 }
 
@@ -115,16 +116,22 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// * File I/O operations (creation, writing, renaming) fail.
     fn register(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<impl Read, OntologyRegistryError> {
+        if !self.registry_path.exists() {
+            fs::create_dir_all(&self.registry_path)
+                .map_err(|_| OntologyRegistryError::NoRegistry)?;
+        }
+
+        let ontology_id = ontology_id.into();
         let mut out_path = self.registry_path.clone();
 
-        let resolved_version = Version::Declared(self.resolve_version(ontology_id, &version)?);
+        let resolved_version = Version::Declared(self.resolve_version(&ontology_id, &version)?);
 
         let registry_file_name = self.construct_registry_file_name(
-            ontology_id,
+            &ontology_id,
             &resolved_version.to_string(),
             &file_type,
         );
@@ -140,15 +147,10 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
             });
         }
 
-        if !self.registry_path.exists() {
-            fs::create_dir_all(&self.registry_path)
-                .map_err(|_| OntologyRegistryError::NoRegistry)?;
-        }
-
         let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
 
         let mut ontology_reader = self.ontology_provider.provide_ontology(
-            ontology_id,
+            &ontology_id,
             &provider_file_name,
             &resolved_version,
         )?;
@@ -235,16 +237,17 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// This operation is thread-safe regarding the `write_lock`.
     fn unregister(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<(), OntologyRegistryError> {
-        let resolved_version = self.resolve_version(ontology_id, &version)?;
+        let ontology_id = ontology_id.into();
+        let resolved_version = self.resolve_version(&ontology_id, &version)?;
 
         let file_path = self
             .registry_path
             .clone()
-            .join(self.construct_registry_file_name(ontology_id, &resolved_version, &file_type));
+            .join(self.construct_registry_file_name(&ontology_id, &resolved_version, &file_type));
 
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -261,11 +264,17 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Returns `None` if the ontology is not currently found in the local registry
     /// or if the version could not be resolved.
-    fn get(&self, ontology_id: &str, version: Version, file_type: FileType) -> Option<impl Read> {
-        let resolved_version = self.resolve_version(ontology_id, &version).ok()?;
+    fn get(
+        &self,
+        ontology_id: impl Into<String>,
+        version: Version,
+        file_type: FileType,
+    ) -> Option<impl Read> {
+        let ontology_id = ontology_id.into();
+        let resolved_version = self.resolve_version(&ontology_id, &version).ok()?;
 
         let file_path = self.registry_path.join(self.construct_registry_file_name(
-            ontology_id,
+            &ontology_id,
             &resolved_version,
             &file_type,
         ));

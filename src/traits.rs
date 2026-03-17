@@ -65,7 +65,7 @@ pub trait OntologyRegistration {
     /// to resolve it to a concrete version string before downloading.
     fn register(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<impl Read, OntologyRegistryError>;
@@ -73,7 +73,7 @@ pub trait OntologyRegistration {
     /// Removes an ontology from the registry.
     fn unregister(
         &self,
-        ontology_id: &str,
+        ontology_id: impl Into<String>,
         version: Version,
         file_type: FileType,
     ) -> Result<(), OntologyRegistryError>;
@@ -81,7 +81,12 @@ pub trait OntologyRegistration {
     /// Retrieves a previously registered ontology.
     ///
     /// Returns `None` if the ontology is not found in the registry.
-    fn get(&self, ontology_id: &str, version: Version, file_type: FileType) -> Option<impl Read>;
+    fn get(
+        &self,
+        ontology_id: impl Into<String>,
+        version: Version,
+        file_type: FileType,
+    ) -> Option<impl Read>;
 
     /// Lists all ontologies currently stored in the registry.
     fn list(&self) -> Vec<String>;

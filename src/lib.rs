@@ -3,7 +3,7 @@
 //! A robust, thread-safe library for managing the lifecycle of biological ontologies.
 //!
 //! This crate provides a unified interface to resolve, download, cache, and load ontologies
-//! (such as Mondo, GO, ChEBI) using standard formats (JSON, OBO, OWL). It is designed
+//! (such as Mondo, GO, NCIT) using standard formats (JSON, OBO, OWL). It is designed
 //! with a modular architecture that separates metadata resolution, content provision,
 //! and local storage management.
 //!
@@ -31,7 +31,8 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // 1. Configure the storage location
-//!     let cache_path = PathBuf::from("./local_ontology_cache");
+//!     use ontology_registry::SupportedOntology;
+//! let cache_path = PathBuf::from("./local_ontology_cache");
 //!
 //!     // 2. Initialize the registry with standard providers
 //!     let registry = FileSystemOntologyRegistry::new(
@@ -43,7 +44,7 @@
 //!     // 3. Register (download and cache) an ontology
 //!     // This resolves the 'latest' version of Mondo and saves it as an OBO file.
 //!     let _reader = registry.register(
-//!         "mondo",
+//!         SupportedOntology::MONDO, // This can also just be a string "mondo"
 //!         Version::Latest,
 //!         FileType::Obo
 //!     )?;
