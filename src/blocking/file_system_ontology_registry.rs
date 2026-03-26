@@ -1,4 +1,5 @@
-use crate::enums::{FileType, Version};
+use crate::RegistryKey;
+use crate::enums::Version;
 use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProviding, OntologyProviding, OntologyRegistration};
 use std::fs::File;
@@ -51,15 +52,6 @@ impl<MDP, OP> FileSystemOntologyRegistry<MDP, OP> {
         fs::create_dir_all(&tmp_dir).map_err(|_| OntologyRegistryError::NoRegistry)?;
 
         Ok(tmp_dir)
-    }
-
-    fn construct_registry_file_name(
-        &self,
-        ontology_id: &str,
-        version: &str,
-        file_type: &FileType,
-    ) -> String {
-        format!("{}_{}{}", ontology_id, version, file_type.as_file_ending())
     }
 }
 
@@ -114,27 +106,25 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// * The registry directory cannot be created.
     /// * The ontology provider fails to return data.
     /// * File I/O operations (creation, writing, renaming) fail.
-    fn register(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Result<impl Read, OntologyRegistryError> {
+    fn register(&self, registry_key: &RegistryKey) -> Result<impl Read, OntologyRegistryError> {
         if !self.registry_path.exists() {
             fs::create_dir_all(&self.registry_path)
                 .map_err(|_| OntologyRegistryError::NoRegistry)?;
         }
 
-        let ontology_id = ontology_id.into();
         let mut out_path = self.registry_path.clone();
 
-        let resolved_version = Version::Declared(self.resolve_version(&ontology_id, &version)?);
-
-        let registry_file_name = self.construct_registry_file_name(
-            &ontology_id,
-            &resolved_version.to_string(),
-            &file_type,
+        let resolved_version = Version::Declared(
+            self.resolve_version(registry_key.ontology_id(), registry_key.version())?,
         );
+
+        let resolved_registry_key = RegistryKey::new(
+            registry_key.ontology_id(),
+            resolved_version,
+            registry_key.file_type(),
+        );
+
+        let registry_file_name = resolved_registry_key.as_file_name();
         out_path.push(registry_file_name.clone());
 
         if out_path.exists() {
@@ -147,12 +137,16 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
             });
         }
 
-        let provider_file_name = format!("{}{}", ontology_id, file_type.as_file_ending());
+        let provider_file_name = format!(
+            "{}{}",
+            resolved_registry_key.ontology_id(),
+            resolved_registry_key.file_type().as_file_ending()
+        );
 
         let mut ontology_reader = self.ontology_provider.provide_ontology(
-            &ontology_id,
+            resolved_registry_key.ontology_id(),
             &provider_file_name,
-            &resolved_version,
+            resolved_registry_key.version(),
         )?;
 
         let _guard =
@@ -235,19 +229,20 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Logs a warning if the version cannot be resolved or if deletion fails.
     /// This operation is thread-safe regarding the `write_lock`.
-    fn unregister(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Result<(), OntologyRegistryError> {
-        let ontology_id = ontology_id.into();
-        let resolved_version = self.resolve_version(&ontology_id, &version)?;
+    fn unregister(&self, registry_key: &RegistryKey) -> Result<(), OntologyRegistryError> {
+        let resolved_version =
+            self.resolve_version(registry_key.ontology_id(), registry_key.version())?;
+
+        let resolved_registry_key = RegistryKey::new(
+            registry_key.ontology_id(),
+            Version::Declared(resolved_version),
+            registry_key.file_type(),
+        );
 
         let file_path = self
             .registry_path
             .clone()
-            .join(self.construct_registry_file_name(&ontology_id, &resolved_version, &file_type));
+            .join(resolved_registry_key.as_file_name());
 
         let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -264,20 +259,20 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Returns `None` if the ontology is not currently found in the local registry
     /// or if the version could not be resolved.
-    fn get(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Option<impl Read> {
-        let ontology_id = ontology_id.into();
-        let resolved_version = self.resolve_version(&ontology_id, &version).ok()?;
+    fn get(&self, registry_key: &RegistryKey) -> Option<impl Read> {
+        let resolved_version = self
+            .resolve_version(registry_key.ontology_id(), registry_key.version())
+            .ok()?;
 
-        let file_path = self.registry_path.join(self.construct_registry_file_name(
-            &ontology_id,
-            &resolved_version,
-            &file_type,
-        ));
+        let resolved_registry_key = RegistryKey::new(
+            registry_key.ontology_id(),
+            Version::Declared(resolved_version),
+            registry_key.file_type(),
+        );
+
+        let file_path = self
+            .registry_path
+            .join(resolved_registry_key.as_file_name());
 
         File::open(file_path).ok()
     }
@@ -285,7 +280,7 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// Lists all files currently stored in the registry directory.
     ///
     /// Returns a vector of strings representing the absolute paths of the files.
-    fn list(&self) -> Vec<String> {
+    fn list(&self) -> Result<Vec<RegistryKey>, OntologyRegistryError> {
         let mut files = Vec::new();
 
         if let Ok(entries) = fs::read_dir(self.registry_path.clone()) {
@@ -293,20 +288,22 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
                 let path = entry.path();
 
                 if path.is_file()
-                    && let Some(path_str) = path.to_str()
+                    && let Some(file_name) = path.file_name()
+                    && let Some(file_name_str) = file_name.to_str()
                 {
-                    files.push(path_str.to_string());
+                    files.push(RegistryKey::from_file_name(file_name_str)?);
                 }
             }
         }
 
-        files
+        Ok(files)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::FileType;
     use crate::ontology_metadata::OntologyMetadata;
     use std::collections::HashMap;
     use std::io::Cursor;
@@ -398,12 +395,12 @@ mod tests {
 
         let registry =
             FileSystemOntologyRegistry::new(registry_path.clone(), metadata_mock, ontology_mock);
-
-        let result = registry.register(
+        let reg_key = RegistryKey::new(
             "my_ontology",
             Version::Declared("1.0".to_string()),
             FileType::Json,
         );
+        let result = registry.register(&reg_key);
 
         assert!(result.is_ok());
         let mut file = result.unwrap();
@@ -426,7 +423,8 @@ mod tests {
             ontology_mock,
         );
 
-        let result = registry.register("my_ontology", Version::Latest, FileType::Json);
+        let reg_key = RegistryKey::new("my_ontology", Version::Latest, FileType::Json);
+        let result = registry.register(&reg_key);
 
         assert!(result.is_ok());
         let mut file = result.unwrap();
@@ -449,11 +447,12 @@ mod tests {
 
         let registry = FileSystemOntologyRegistry::new(registry_path, metadata_mock, ontology_mock);
 
-        let result = registry.register(
+        let reg_key = RegistryKey::new(
             "test_ont",
             Version::Declared("1.0".to_string()),
             FileType::Json,
         );
+        let result = registry.register(&reg_key);
 
         assert!(result.is_ok());
 
@@ -465,7 +464,7 @@ mod tests {
     fn test_get_existing_ontology() {
         let temp_dir = tempdir().unwrap();
         let registry_path = temp_dir.path().to_path_buf();
-        let target_path = registry_path.join("findme_2024-05-05.json");
+        let target_path = registry_path.join("findme@2024-05-05.json");
 
         let content = "data";
         fs::write(&target_path, content).unwrap();
@@ -476,11 +475,13 @@ mod tests {
             MockOntologyProvider::new(),
         );
 
-        let result = registry.get(
+        let reg_key = RegistryKey::new(
             "findme",
             Version::Declared("2024-05-05".to_string()),
             FileType::Json,
         );
+
+        let result = registry.get(&reg_key);
 
         let mut file = result.unwrap();
         let mut loaded_content = String::new();
@@ -497,12 +498,12 @@ mod tests {
             MockMetadataProvider::new(),
             MockOntologyProvider::new(),
         );
-
-        let result = registry.get(
+        let reg_key = RegistryKey::new(
             "missing",
             Version::Declared("9.9".to_string()),
             FileType::Obo,
         );
+        let result = registry.get(&reg_key);
 
         assert!(result.is_none());
     }
@@ -511,7 +512,7 @@ mod tests {
     fn test_unregister_removes_file() {
         let temp_dir = tempdir().unwrap();
         let registry_path = temp_dir.path().to_path_buf();
-        let target_path = registry_path.join("todelete_2024-05-05.json");
+        let target_path = registry_path.join("todelete@2024-05-05.json");
         fs::write(&target_path, "delete_me").unwrap();
 
         let registry = FileSystemOntologyRegistry::new(
@@ -522,13 +523,13 @@ mod tests {
 
         assert!(target_path.exists());
 
-        registry
-            .unregister(
-                "todelete",
-                Version::Declared("2024-05-05".to_string()),
-                FileType::Json,
-            )
-            .unwrap();
+        let reg_key = RegistryKey::new(
+            "todelete",
+            Version::Declared("2024-05-05".to_string()),
+            FileType::Json,
+        );
+
+        registry.unregister(&reg_key).unwrap();
 
         assert!(!target_path.exists());
     }
@@ -538,8 +539,8 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let registry_path = temp_dir.path().to_path_buf();
 
-        fs::write(registry_path.join("A_1.0.json"), "").unwrap();
-        fs::write(registry_path.join("B_2.0.obo"), "").unwrap();
+        fs::write(registry_path.join("A@1.0.json"), "").unwrap();
+        fs::write(registry_path.join("B@2.0.obo"), "").unwrap();
         fs::create_dir(registry_path.join("subdir")).unwrap();
 
         let registry = FileSystemOntologyRegistry::new(
@@ -548,11 +549,17 @@ mod tests {
             MockOntologyProvider::new(),
         );
 
-        let files = registry.list();
+        let files = registry.list().unwrap();
 
         assert_eq!(files.len(), 2);
-        assert!(files.iter().any(|f| f.contains("A_1.0.json")));
-        assert!(files.iter().any(|f| f.contains("B_2.0.obo")));
+        assert!(
+            files.iter().any(|f| *f
+                == RegistryKey::new("A", Version::Declared("1.0".to_string()), FileType::Json))
+        );
+        assert!(
+            files.iter().any(|f| *f
+                == RegistryKey::new("B", Version::Declared("2.0".to_string()), FileType::Obo))
+        );
     }
 
     #[test]
@@ -574,13 +581,12 @@ mod tests {
         for _ in 0..5 {
             let reg_clone = registry.clone();
             handles.push(std::thread::spawn(move || {
-                reg_clone
-                    .register(
-                        "shared",
-                        Version::Declared("1.0".to_string()),
-                        FileType::Json,
-                    )
-                    .map(|_| ())
+                let reg_key = RegistryKey::new(
+                    "shared",
+                    Version::Declared("1.0".to_string()),
+                    FileType::Json,
+                );
+                reg_clone.register(&reg_key).map(|_| ())
             }));
         }
 
