@@ -43,25 +43,27 @@ use ontology_registry::enums::{FileType, Version, SupportedOntology};
 use ontology_registry::traits::OntologyRegistration;
 use std::path::PathBuf;
 use std::io::Read;
+use ontology_registry::RegistryKey;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Setup the registry with standard providers
     // In a real app, use a persistent path like "~/.cache/ontologies"
     let cache_dir = PathBuf::from("./local_ontology_cache");
-
     let registry = FileSystemOntologyRegistry::new(
         cache_dir,
-        BioRegistryMetadataProvider::default(), // Resolves versions via BioRegistry.io
-        OboLibraryProvider::default(),          // Downloads content from OBO Library
+        BioRegistryMetadataProvider::default(),
+        OboLibraryProvider::default(),
     );
 
     // 2. Register (Download & Cache)
     // This resolves 'Latest' to a specific date (e.g., "2024-01-01")
-    let mut reader = registry.register(
+    let reg_key = RegistryKey::new(
         SupportedOntology::MONDO, // This can also just be a string "mondo"
         Version::Latest,
         FileType::Obo
-    )?;
+    );
+
+    let mut reader = registry.register(reg_key)?;
 
     // 3. Read the content
     let mut content = String::new();
@@ -80,17 +82,17 @@ If you need reproducibility, you can request a specific version string.
 use ontology_registry::enums::{FileType, Version};
 use ontology_registry::blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 use ontology_registry::traits::OntologyRegistration;
-
+use ontology_registry::RegistryKey;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = FileSystemOntologyRegistry::default();
 
     let version = Version::Declared("2023-01-01".to_string());
-
-    let reader = registry.register(
+    let reg_key = RegistryKey::new(
         "go",
         version,
         FileType::Owl
-    )?;
+    );
+    let reader = registry.register(reg_key)?;
 }
 ```
 
