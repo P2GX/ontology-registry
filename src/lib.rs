@@ -31,8 +31,8 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // 1. Configure the storage location
-//!     use ontology_registry::SupportedOntology;
-//! let cache_path = PathBuf::from("./local_ontology_cache");
+//!     use ontology_registry::{RegistryKey, SupportedOntology};
+//!     let cache_path = PathBuf::from("./local_ontology_cache");
 //!
 //!     // 2. Initialize the registry with standard providers
 //!     let registry = FileSystemOntologyRegistry::new(
@@ -43,14 +43,15 @@
 //!
 //!     // 3. Register (download and cache) an ontology
 //!     // This resolves the 'latest' version of Mondo and saves it as an OBO file.
-//!     let _reader = registry.register(
+//!
+//!     let reg_key = RegistryKey::new(
 //!         SupportedOntology::MONDO, // This can also just be a string "mondo"
 //!         Version::Latest,
-//!         FileType::Obo
-//!     )?;
+//!         FileType::Obo);
+//!     let _reader = registry.register(&reg_key)?;
 //!
 //!     // 4. Access the ontology later (offline)
-//!     if let Some(_content) = registry.get("mondo", Version::Latest, FileType::Obo) {
+//!     if let Some(_content) = registry.get(&reg_key) {
 //!         println!("Mondo ontology loaded successfully.");
 //!     }
 //!
@@ -78,6 +79,7 @@ pub mod blocking;
 pub mod enums;
 pub mod error;
 pub mod ontology_metadata;
+pub mod registry_key;
 pub mod traits;
 
 pub use blocking::bio_registry_metadata_provider::BioRegistryMetadataProvider;
@@ -85,4 +87,5 @@ pub use blocking::file_system_ontology_registry::FileSystemOntologyRegistry;
 pub use blocking::obolib_ontology_provider::OboLibraryProvider;
 pub use enums::*;
 pub use error::*;
+pub use registry_key::RegistryKey;
 pub use traits::*;

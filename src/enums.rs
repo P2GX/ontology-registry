@@ -1,7 +1,8 @@
+use crate::OntologyRegistryError;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Default, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Version {
     #[default]
     Latest,
@@ -23,7 +24,7 @@ impl Display for Version {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Hash, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
     Json,
@@ -38,6 +39,26 @@ impl FileType {
             FileType::Obo => ".obo",
             FileType::Owl => ".owl",
         }
+    }
+    pub fn from_file_ending(filename: &str) -> Result<FileType, OntologyRegistryError> {
+        match filename {
+            f if f == FileType::Json.as_file_ending() => Ok(FileType::Json),
+            f if f == FileType::Obo.as_file_ending() => Ok(FileType::Obo),
+            f if f == FileType::Owl.as_file_ending() => Ok(FileType::Owl),
+            _ => Err(OntologyRegistryError::CantParseFileFormat {
+                raw_format: filename.to_string(),
+            }),
+        }
+    }
+
+    pub fn all() -> Vec<FileType> {
+        vec![FileType::Json, FileType::Obo, FileType::Owl]
+    }
+}
+
+impl Display for FileType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_file_ending())
     }
 }
 

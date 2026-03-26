@@ -10,7 +10,8 @@
 //! Implementing these traits allows users to create custom backends (e.g., an S3-backed registry
 //! or a custom internal metadata server) while keeping the rest of the application logic unchanged.
 
-use crate::enums::{FileType, Version};
+use crate::RegistryKey;
+use crate::enums::Version;
 use crate::error::OntologyRegistryError;
 use crate::ontology_metadata::OntologyMetadata;
 use std::io::Read;
@@ -63,31 +64,16 @@ pub trait OntologyRegistration {
     ///
     /// If `Version::Latest` is passed, the implementor should use a metadata provider
     /// to resolve it to a concrete version string before downloading.
-    fn register(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Result<impl Read, OntologyRegistryError>;
+    fn register(&self, registry_key: &RegistryKey) -> Result<impl Read, OntologyRegistryError>;
 
     /// Removes an ontology from the registry.
-    fn unregister(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Result<(), OntologyRegistryError>;
+    fn unregister(&self, registry_key: &RegistryKey) -> Result<(), OntologyRegistryError>;
 
     /// Retrieves a previously registered ontology.
     ///
     /// Returns `None` if the ontology is not found in the registry.
-    fn get(
-        &self,
-        ontology_id: impl Into<String>,
-        version: Version,
-        file_type: FileType,
-    ) -> Option<impl Read>;
+    fn get(&self, registry_key: &RegistryKey) -> Option<impl Read>;
 
     /// Lists all ontologies currently stored in the registry.
-    fn list(&self) -> Vec<String>;
+    fn list(&self) -> Result<Vec<RegistryKey>, OntologyRegistryError>;
 }
