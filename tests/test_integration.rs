@@ -1,6 +1,6 @@
 use ontology_registry::{
     BioRegistryMetadataProvider, FileSystemOntologyRegistry, FileType, OboLibraryProvider,
-    OntologyRegistration, RegistryKey, Version,
+    OntologyRegistration, RegistryKey, SupportedOntology, Version,
 };
 use std::io::Read;
 use tempfile::TempDir;
@@ -34,7 +34,7 @@ fn test_integration_declared_version() {
 
 #[test]
 fn test_integration_declared_latest() {
-    let reg_key = RegistryKey::new("chebi", Version::Latest, FileType::Obo);
+    let reg_key = RegistryKey::new(SupportedOntology::HP, Version::Latest, FileType::Obo);
 
     let tmp_dir = TempDir::new().unwrap();
     let registry = FileSystemOntologyRegistry::new(
