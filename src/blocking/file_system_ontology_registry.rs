@@ -3,7 +3,7 @@ use crate::enums::Version;
 use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProviding, OntologyProviding, OntologyRegistration};
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Bytes, Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -106,7 +106,7 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     /// * The registry directory cannot be created.
     /// * The ontology provider fails to return data.
     /// * File I/O operations (creation, writing, renaming) fail.
-    fn register(&self, registry_key: &RegistryKey) -> Result<impl Read, OntologyRegistryError> {
+    fn register(&self, registry_key: RegistryKey) -> Result<File, OntologyRegistryError> {
         if !self.registry_path.exists() {
             fs::create_dir_all(&self.registry_path)
                 .map_err(|_| OntologyRegistryError::NoRegistry)?;
@@ -229,7 +229,7 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Logs a warning if the version cannot be resolved or if deletion fails.
     /// This operation is thread-safe regarding the `write_lock`.
-    fn unregister(&self, registry_key: &RegistryKey) -> Result<(), OntologyRegistryError> {
+    fn unregister(&self, registry_key: RegistryKey) -> Result<(), OntologyRegistryError> {
         let resolved_version =
             self.resolve_version(registry_key.ontology_id(), registry_key.version())?;
 
@@ -259,7 +259,7 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
     ///
     /// Returns `None` if the ontology is not currently found in the local registry
     /// or if the version could not be resolved.
-    fn get(&self, registry_key: &RegistryKey) -> Option<impl Read> {
+    fn get(&self, registry_key: RegistryKey) -> Option<File> {
         let resolved_version = self
             .resolve_version(registry_key.ontology_id(), registry_key.version())
             .ok()?;
@@ -400,7 +400,7 @@ mod tests {
             Version::Declared("1.0".to_string()),
             FileType::Json,
         );
-        let result = registry.register(&reg_key);
+        let result = registry.register(reg_key);
 
         assert!(result.is_ok());
         let mut file = result.unwrap();
@@ -424,7 +424,7 @@ mod tests {
         );
 
         let reg_key = RegistryKey::new("my_ontology", Version::Latest, FileType::Json);
-        let result = registry.register(&reg_key);
+        let result = registry.register(reg_key);
 
         assert!(result.is_ok());
         let mut file = result.unwrap();
@@ -452,7 +452,7 @@ mod tests {
             Version::Declared("1.0".to_string()),
             FileType::Json,
         );
-        let result = registry.register(&reg_key);
+        let result = registry.register(reg_key);
 
         assert!(result.is_ok());
 
@@ -481,7 +481,7 @@ mod tests {
             FileType::Json,
         );
 
-        let result = registry.get(&reg_key);
+        let result = registry.get(reg_key);
 
         let mut file = result.unwrap();
         let mut loaded_content = String::new();
@@ -503,7 +503,7 @@ mod tests {
             Version::Declared("9.9".to_string()),
             FileType::Obo,
         );
-        let result = registry.get(&reg_key);
+        let result = registry.get(reg_key);
 
         assert!(result.is_none());
     }
@@ -529,7 +529,7 @@ mod tests {
             FileType::Json,
         );
 
-        registry.unregister(&reg_key).unwrap();
+        registry.unregister(reg_key).unwrap();
 
         assert!(!target_path.exists());
     }
@@ -586,7 +586,7 @@ mod tests {
                     Version::Declared("1.0".to_string()),
                     FileType::Json,
                 );
-                reg_clone.register(&reg_key).map(|_| ())
+                reg_clone.register(reg_key).map(|_| ())
             }));
         }
 
