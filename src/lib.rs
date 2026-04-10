@@ -51,7 +51,7 @@
 //!     let _reader = registry.register(&reg_key)?;
 //!
 //!     // 4. Access the ontology later (offline)
-//!     if let Some(_content) = registry.get(&reg_key) {
+//!     if let Some(_content) = registry.get(reg_key) {
 //!         println!("Mondo ontology loaded successfully.");
 //!     }
 //!
