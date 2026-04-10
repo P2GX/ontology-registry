@@ -290,6 +290,8 @@ impl<MDP: OntologyMetadataProviding, OP: OntologyProviding> OntologyRegistration
                 if path.is_file()
                     && let Some(file_name) = path.file_name()
                     && let Some(file_name_str) = file_name.to_str()
+                    // Ignoring hidden files
+                    && !file_name_str.starts_with('.')
                 {
                     files.push(RegistryKey::from_file_name(file_name_str)?);
                 }
@@ -559,6 +561,29 @@ mod tests {
         assert!(
             files.iter().any(|f| *f
                 == RegistryKey::new("B", Version::Declared("2.0".to_string()), FileType::Obo))
+        );
+    }
+
+    #[test]
+    fn test_list_files_ignore_hidden_files() {
+        let temp_dir = tempdir().unwrap();
+        let registry_path = temp_dir.path().to_path_buf();
+
+        fs::write(registry_path.join("A@1.0.json"), "").unwrap();
+        fs::write(registry_path.join(".DS_Store"), "").unwrap();
+
+        let registry = FileSystemOntologyRegistry::new(
+            registry_path,
+            MockMetadataProvider::new(),
+            MockOntologyProvider::new(),
+        );
+
+        let files = registry.list().unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert!(
+            files.iter().any(|f| *f
+                == RegistryKey::new("A", Version::Declared("1.0".to_string()), FileType::Json))
         );
     }
 
