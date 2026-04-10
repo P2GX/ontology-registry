@@ -14,6 +14,7 @@ use crate::RegistryKey;
 use crate::enums::Version;
 use crate::error::OntologyRegistryError;
 use crate::ontology_metadata::OntologyMetadata;
+use std::fs::File;
 use std::io::Read;
 
 /// Defines how to retrieve metadata about an ontology.
@@ -64,15 +65,15 @@ pub trait OntologyRegistration {
     ///
     /// If `Version::Latest` is passed, the implementor should use a metadata provider
     /// to resolve it to a concrete version string before downloading.
-    fn register(&self, registry_key: &RegistryKey) -> Result<impl Read, OntologyRegistryError>;
+    fn register(&self, registry_key: RegistryKey) -> Result<File, OntologyRegistryError>;
 
     /// Removes an ontology from the registry.
-    fn unregister(&self, registry_key: &RegistryKey) -> Result<(), OntologyRegistryError>;
+    fn unregister(&self, registry_key: RegistryKey) -> Result<(), OntologyRegistryError>;
 
     /// Retrieves a previously registered ontology.
     ///
     /// Returns `None` if the ontology is not found in the registry.
-    fn get(&self, registry_key: &RegistryKey) -> Option<impl Read>;
+    fn get(&self, registry_key: RegistryKey) -> Option<File>;
 
     /// Lists all ontologies currently stored in the registry.
     fn list(&self) -> Result<Vec<RegistryKey>, OntologyRegistryError>;

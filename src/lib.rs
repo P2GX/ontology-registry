@@ -48,10 +48,10 @@
 //!         SupportedOntology::MONDO, // This can also just be a string "mondo"
 //!         Version::Latest,
 //!         FileType::Obo);
-//!     let _reader = registry.register(&reg_key)?;
+//!     let _reader = registry.register(reg_key.clone())?;
 //!
 //!     // 4. Access the ontology later (offline)
-//!     if let Some(_content) = registry.get(&reg_key) {
+//!     if let Some(_content) = registry.get(reg_key) {
 //!         println!("Mondo ontology loaded successfully.");
 //!     }
 //!
