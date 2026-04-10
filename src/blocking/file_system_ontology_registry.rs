@@ -3,7 +3,7 @@ use crate::enums::Version;
 use crate::error::OntologyRegistryError;
 use crate::traits::{OntologyMetadataProviding, OntologyProviding, OntologyRegistration};
 use std::fs::File;
-use std::io::{Bytes, Read, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
